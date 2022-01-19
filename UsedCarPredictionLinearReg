@@ -1,0 +1,503 @@
+#This is a jupyter notebook and it also includes my personal notes and explaination for the project code and concepts
+
+import pandas as pd
+import numpy as np
+
+
+# In[10]:
+
+
+headers = ["symboling","normalized-losses","make","fuel-type","aspiration","num-of-doors","body-style","drive-wheels","engine-location","wheel-base","length","width","height","curb-weight","engine-type","num-of-cylinders","engine-size","fuel-system","bore","stroke","compression-ratio","horsepower","peak-rpm","city-mpg","highway-mpg","price"]
+
+
+# In[19]:
+
+
+df = pd.read_csv("D:\\Abhishek\\E Drive\\Padhai\\Programming\\Python\\IBM_Python_\\imports_85_data.csv")
+
+
+# In[20]:
+
+
+df.columns = headers
+
+
+# In[21]:
+
+
+df.head()
+
+
+# In[22]:
+
+
+df.to_csv("D:\\Abhishek\\E Drive\\Padhai\\Programming\\Python\\IBM_Python_\\imports_85_data_with_header.csv")
+
+
+# In[27]:
+
+
+df.describe(include='all')
+
+
+# In[26]:
+
+
+df.dtypes
+
+
+# In[29]:
+
+
+df.info()
+
+
+# In[30]:
+
+
+df[["length","compression-ratio"]].describe()
+
+
+# In[31]:
+
+
+df
+
+
+# # Dealing with Missing values
+
+# In[33]:
+
+
+df.dropna(subset = ["price"],axis = 0,inplace = True)
+
+
+# In[34]:
+
+
+df
+
+
+# In[35]:
+
+
+mean = df["normalized-losses"].mean()
+
+
+# In[36]:
+
+
+mean
+
+
+# In[39]:
+
+
+df["normalized-losses"].replace(np.nan,mean)
+
+
+# In[40]:
+
+
+df["city-mpg"] = 235/df["city-mpg"]
+
+
+# In[41]:
+
+
+df.rename(columns={"city-mpg":"city-L/100km"},inplace=True)
+
+
+# In[42]:
+
+
+df
+
+
+# In[53]:
+
+
+df["price"] = df["price"].astype(int)
+
+
+# In[59]:
+
+
+'''
+##Normalization Of Data - This Means that if the data is in different ranges like age(0-100) and income(0-1000000), in this
+##case the income column will heavily affect the regression so we must bring them in the same range
+
+##There are multiple techniques to normalize the data like
+
+* Simple feature scaling - (old/max)
+* min-max - old-min/max-min
+* z-score - old - average/std deviation (This value hovers around 0 and typically ranges from -3 to +3 but can be higher or lower)
+
+'''
+
+
+# In[60]:
+
+
+#Binning data in Python
+
+
+# In[61]:
+
+
+bins = np.linspace(min(df["price"]),max(df["price"]),4)
+group_names = ["Low","Medium","High"]
+df["Price-Binned"] = pd.cut(df["price"],bins,labels = group_names,include_lowest=True)
+
+
+# In[62]:
+
+
+df
+
+
+# In[68]:
+
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+
+# In[66]:
+
+
+sns.histplot(df["Price-Binned"])
+
+
+# In[87]:
+
+
+plt.hist(df["Price-Binned"])
+
+
+# In[74]:
+
+
+#Turn categorical into quantative (One- hot encoding - Same used in IPL analysis in DAM project)
+
+
+# In[89]:
+
+
+pd.get_dummies(df["fuel-type"])
+
+
+# In[76]:
+
+
+#Exploratory Data Analysis - To answer the question that which characteristics have most impact on price
+
+
+# In[90]:
+
+
+df.describe()
+
+
+# In[91]:
+
+
+drive_wheels_count = df["drive-wheels"].value_counts()
+
+
+# In[92]:
+
+
+drive_wheels_count
+
+
+# In[93]:
+
+
+sns.boxplot(x = "drive-wheels",y = "price",data = df)
+
+
+# In[95]:
+
+
+plt.scatter(df["engine-size"],df["price"])
+plt.title("Scatterplot of Engine-Size vs Price")
+plt.xlabel("Engine Size")
+plt.ylabel("Price")
+
+
+# In[101]:
+
+
+df_test = df[["drive-wheels","body-style","price"]]
+df_grp = df_test.groupby(["drive-wheels","body-style"],as_index=False).mean()
+
+
+# In[102]:
+
+
+df_test
+
+
+# In[103]:
+
+
+df_grp
+
+
+# In[105]:
+
+
+df_pivot = df_grp.pivot(index = "drive-wheels",columns="body-style")
+
+
+# In[106]:
+
+
+df_pivot
+
+
+# In[112]:
+
+
+plt.pcolor(df_pivot,cmap="RdBu")
+plt.colorbar()
+plt.show()
+
+
+# In[113]:
+
+
+#Analysis of Variance
+#We perform to get correlation between differnt groups of categorical variable
+
+
+# In[114]:
+
+
+#Correlation - It measure to what extent the different variables are interdependent
+
+
+# In[118]:
+
+
+sns.regplot(x = "engine-size",y = "price", data = df)
+#It is a positive linear correlation
+
+
+# In[120]:
+
+
+sns.regplot(x = "highway-mpg",y = "price", data = df)
+#It is a negative linear correlation
+
+
+# In[121]:
+
+
+sns.regplot(x = "peak-rpm",y = "price", data = df)
+#It is a weak linear correlation
+
+
+# In[122]:
+
+
+#Pearson Correlation Example
+
+
+# In[131]:
+
+
+from scipy import stats
+
+pearson_coef, p_value = stats.pearsonr(df["horsepower"].dropna().head(150),df["price"].dropna().head(150)) 
+print("The Pearson coefficient is ",pearson_coef)
+print("The p value is ",p_value)
+
+
+# # MODEL DEVELOPMENT
+
+# In[137]:
+
+
+#Simple and multiple linear regression
+#In simple linear regression 1 variable gives the prediction - SLR
+#In multiple linear regression multiple variables give the prediction
+
+
+# SIMPLE LINEAR REGRESSION
+
+# In[180]:
+
+
+from sklearn.linear_model import LinearRegression
+lm = LinearRegression()
+
+
+# In[239]:
+
+
+X = df[['highway-mpg',]].head(100)
+Y = df[['price']].head(100)
+
+
+# In[240]:
+
+
+lm.fit(X,Y)
+
+
+# In[241]:
+
+
+Yhat = lm.predict(X)
+
+
+# In[242]:
+
+
+Yhat
+
+
+# In[185]:
+
+
+lm.intercept_
+
+
+# In[186]:
+
+
+#Slope
+lm.coef_
+
+
+# MULTIPLE LINEAR REGRESSION
+
+# In[187]:
+
+
+Z = df[['horsepower','curb-weight','engine-size','highway-mpg']].head(100)
+
+
+# In[188]:
+
+
+lm.fit(Z,df['price'].head(100))
+
+
+# MODEL EVALUATION USING VISUALIZATION
+
+# In[190]:
+
+
+import seaborn as sns
+
+
+# In[191]:
+
+
+sns.regplot(x='highway-mpg',y='price',data=df)
+
+
+# In[192]:
+
+
+#RESIDUAL PLOT - IT REPRESENTS THE ERROR BETWEEN THE ACTUAL VALUE
+
+
+# In[193]:
+
+
+sns.residplot(df['highway-mpg'],df['price'])
+
+
+# POLYNOMIAL REGRESSION
+# - PIPELINES ARE WAY TO SIMPLIFY YOUR CODE
+# - Polynomal regression is a special case of general linear regression used for curviliniar relationships
+# - Curvilinear relationships - By squaring or setting higher-order terms of the predictor variables
+
+# In[252]:
+
+
+f = np.polyfit(X,Y,3)
+p = np.poly1d(f)
+print(p)
+
+
+# # PIPELINES 
+
+# ## There are many steps to getting a prediction
+#  --Normalization
+#  --Polynomial Transform
+#  --Linear Regression
+
+# In[216]:
+
+
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+
+
+# In[217]:
+
+
+#PIPELINE CONSTRUCTOR
+Input = [('scale',StandardScaler()),('polynimial',PolynomialFeatures(degree=2)),('model',LinearRegression())]
+
+
+# In[218]:
+
+
+#PIPELINE OBJECT
+pipe = Pipeline(Input)
+
+
+# In[248]:
+
+
+#TRAINING THE PIPELINE
+pipe.fit(X,Y)
+yhat = pipe.predict(X)
+
+
+# In[249]:
+
+
+yhat
+
+
+# In[261]:
+
+
+#NUMERICALLY EVALUATE HOW WELL THE MODEL FITS
+# To numerically evaluate how well the model fits we have 2 important measures, mean squared error and r squared
+
+
+# In[254]:
+
+
+X = df[['highway-mpg']]
+Y = df[['price']]
+lm.fit(X,Y)
+lm.score(X,Y)
+
+
+# In[271]:
+
+
+lm.fit(df[['highway-mpg']],df[['price']])
+
+
+# In[275]:
+
+
+lm.predict([[30]])
+
+
+# In[276]:
+
+
+lm.coef_
